@@ -84,6 +84,10 @@ class ObjectiveRequest(BaseModel):
 class CommandRequest(BaseModel):
     command: str
 
+class ScopeUpdateRequest(BaseModel):
+    authorized_targets: list[str]
+    authorization_url: str = ""
+
 class ScanRequest(BaseModel):
     module: str
     target: str
@@ -165,6 +169,20 @@ async def get_scope():
         "authorized_targets": cfg.scope.authorized_targets if cfg else [],
         "strict": cfg.scope.strict if cfg else True,
         "authorization_url": cfg.scope.authorization_url if cfg else "",
+    }
+
+
+@app.put("/api/scope")
+async def update_scope(req: ScopeUpdateRequest):
+    if not _config:
+        return {"error": "Not initialized"}
+    _config.scope.authorized_targets = req.authorized_targets
+    if req.authorization_url:
+        _config.scope.authorization_url = req.authorization_url
+    return {
+        "authorized_targets": _config.scope.authorized_targets,
+        "strict": _config.scope.strict,
+        "authorization_url": _config.scope.authorization_url,
     }
 
 

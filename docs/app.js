@@ -222,12 +222,44 @@ async function stop() {
 function renderScope(scope) {
     const el = dom.scopeList();
     if (!scope.authorized_targets || scope.authorized_targets.length === 0) {
-        el.innerHTML = "<em>No scope defined</em>";
+        el.innerHTML = "<em>No targets set</em>";
         return;
     }
     el.innerHTML = scope.authorized_targets
         .map(t => `<div class="scope-item">${esc(t)}</div>`)
         .join("");
+
+    // Populate input with first target for easy editing
+    const input = $("#target-url");
+    if (input && !input.value) {
+        input.value = scope.authorized_targets[0] || "";
+    }
+}
+
+async function setTarget() {
+    const input = $("#target-url");
+    const target = (input.value || "").trim();
+    if (!target) {
+        appendLog("Enter a target URL first.", "log-warning");
+        return;
+    }
+    if (!state.connected) {
+        appendLog("Not connected. Click <b>Connect</b> first.", "log-error");
+        return;
+    }
+    try {
+        const scope = await api("/api/scope", {
+            method: "PUT",
+            body: JSON.stringify({
+                authorized_targets: [target],
+                authorization_url: target.startsWith("http") ? target : `https://${target}`,
+            }),
+        });
+        renderScope(scope);
+        appendLog(`Target set: <b>${esc(target)}</b>`, "log-success");
+    } catch (e) {
+        appendLog(`Failed to set target: ${esc(e.message)}`, "log-error");
+    }
 }
 
 function renderModules(modules) {
@@ -365,6 +397,12 @@ function init() {
     dom.btnConnect().addEventListener("click", connect);
     dom.btnSend().addEventListener("click", send);
     dom.btnStop().addEventListener("click", stop);
+    $("#btn-set-target")?.addEventListener("click", setTarget);
+
+    // Allow Enter in target input
+    $("#target-url")?.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); setTarget(); }
+    });
 
     dom.moduleSearch()?.addEventListener("input", (e) => {
         renderModuleGrid(state.modules, e.target.value);
