@@ -21,6 +21,10 @@
             <span class="logo">RELIC</span>
         </div>
         <div class="header-right">
+            <button id="btn-setup" class="btn" title="Setup Guide">
+                <span class="material-symbols-outlined icon-inline">help_outline</span>
+                Setup
+            </button>
             <span id="status-indicator" class="status disconnected">
                 <span class="material-symbols-outlined icon-inline">circle</span>
                 Disconnected
@@ -43,6 +47,17 @@
                     <span class="material-symbols-outlined icon-inline">power_settings_new</span>
                     Connect
                 </button>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-label">
+                    <span class="material-symbols-outlined icon-label">smart_toy</span>
+                    Model
+                </div>
+                <select id="model-select" class="select">
+                    <option value="" disabled selected>Connect first…</option>
+                </select>
+                <div id="model-specs" class="model-specs"></div>
             </div>
 
             <div class="sidebar-section">
@@ -112,12 +127,18 @@
             <section id="tab-findings" class="tab-content">
                 <div class="findings-header">
                     <h2>Findings</h2>
-                    <div class="finding-stats">
-                        <span class="badge" id="count-critical">0 Critical</span>
-                        <span class="badge" id="count-high">0 High</span>
-                        <span class="badge" id="count-medium">0 Medium</span>
-                        <span class="badge" id="count-low">0 Low</span>
-                        <span class="badge" id="count-info">0 Info</span>
+                    <div class="findings-actions">
+                        <div class="finding-stats">
+                            <span class="badge" id="count-critical">0 Critical</span>
+                            <span class="badge" id="count-high">0 High</span>
+                            <span class="badge" id="count-medium">0 Medium</span>
+                            <span class="badge" id="count-low">0 Low</span>
+                            <span class="badge" id="count-info">0 Info</span>
+                        </div>
+                        <button id="btn-report" class="btn">
+                            <span class="material-symbols-outlined icon-inline">description</span>
+                            Generate Report
+                        </button>
                     </div>
                 </div>
                 <table id="findings-table">
@@ -149,6 +170,89 @@
                 <div id="module-grid"></div>
             </section>
         </main>
+    </div>
+
+    <!-- ───────── Setup Modal ───────── -->
+    <div id="setup-overlay" class="modal-overlay" style="display:none">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Setup Required</h2>
+                <button class="btn icon-btn" id="btn-close-setup">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Relic's web UI is a <b>static frontend</b>. It connects to a local API server running on your machine. You need to install a few things first:</p>
+                <div class="setup-steps">
+                    <div class="setup-step">
+                        <span class="step-num">1</span>
+                        <div>
+                            <b>Install Ollama</b>
+                            <p>Download from <code>ollama.com</code>. This runs AI models locally on your GPU/CPU.</p>
+                        </div>
+                    </div>
+                    <div class="setup-step">
+                        <span class="step-num">2</span>
+                        <div>
+                            <b>Pull a model</b>
+                            <p>Run <code>ollama pull glm4</code> in your terminal. Pick a model that fits your hardware from the Model selector.</p>
+                        </div>
+                    </div>
+                    <div class="setup-step">
+                        <span class="step-num">3</span>
+                        <div>
+                            <b>Install Relic</b>
+                            <p>Run <code>pip install relic[web]</code> or clone the repo and run <code>pip install -e ".[web]"</code></p>
+                        </div>
+                    </div>
+                    <div class="setup-step">
+                        <span class="step-num">4</span>
+                        <div>
+                            <b>Start the API</b>
+                            <p>Run <code>relic-web</code> in your terminal. The API starts on <code>127.0.0.1:8746</code></p>
+                        </div>
+                    </div>
+                    <div class="setup-step">
+                        <span class="step-num">5</span>
+                        <div>
+                            <b>Connect</b>
+                            <p>Click Connect in the sidebar. Set your target and start scanning.</p>
+                        </div>
+                    </div>
+                </div>
+                <p class="setup-note">Nothing runs in the cloud. All AI inference and scanning happens locally on your machine.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ───────── Report Modal ───────── -->
+    <div id="report-overlay" class="modal-overlay" style="display:none">
+        <div class="modal modal-wide">
+            <div class="modal-header">
+                <h2>Security Report</h2>
+                <button class="btn icon-btn" id="btn-close-report">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="report-content" class="report-content">Generating report…</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ───────── Explain Modal ───────── -->
+    <div id="explain-overlay" class="modal-overlay" style="display:none">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Error Explanation</h2>
+                <button class="btn icon-btn" id="btn-close-explain">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="explain-content" class="report-content">Generating explanation…</div>
+            </div>
+        </div>
     </div>
 
     <script src="app.js"></script>

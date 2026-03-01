@@ -93,6 +93,12 @@ class ScanRequest(BaseModel):
     target: str
     params: dict[str, Any] = {}
 
+class ModelSwitchRequest(BaseModel):
+    model: str
+
+class ExplainRequest(BaseModel):
+    error_text: str
+
 class StatusResponse(BaseModel):
     status: str
     model: str | None = None
@@ -104,6 +110,81 @@ class ModuleInfo(BaseModel):
     name: str
     description: str
     category: str
+
+# ── Model presets (name → specs) ──────────────────────────────────
+
+MODEL_PRESETS = [
+    {
+        "id": "glm4-flash",
+        "name": "GLM-4.7-Flash (30B-A3B)",
+        "ollama": "glm4:latest",
+        "size_gb": 19,
+        "min_vram_gb": 6,
+        "min_ram_gb": 16,
+        "description": "Best quality. MoE architecture, only 3B active params. Needs 6 GB+ VRAM.",
+        "tier": "recommended",
+    },
+    {
+        "id": "gemma3-12b",
+        "name": "Gemma 3 12B",
+        "ollama": "gemma3:12b",
+        "size_gb": 8,
+        "min_vram_gb": 8,
+        "min_ram_gb": 16,
+        "description": "Strong reasoning. Dense 12B model. Needs 8 GB VRAM.",
+        "tier": "high",
+    },
+    {
+        "id": "gemma3-4b",
+        "name": "Gemma 3 4B",
+        "ollama": "gemma3:4b",
+        "size_gb": 3.3,
+        "min_vram_gb": 4,
+        "min_ram_gb": 8,
+        "description": "Lightweight. Good for 4 GB VRAM GPUs or CPU-only with 8 GB RAM.",
+        "tier": "medium",
+    },
+    {
+        "id": "qwen2.5-7b",
+        "name": "Qwen 2.5 7B",
+        "ollama": "qwen2.5:7b",
+        "size_gb": 4.7,
+        "min_vram_gb": 5,
+        "min_ram_gb": 8,
+        "description": "Balanced quality and speed. Good code understanding.",
+        "tier": "medium",
+    },
+    {
+        "id": "qwen2.5-3b",
+        "name": "Qwen 2.5 3B",
+        "ollama": "qwen2.5:3b",
+        "size_gb": 2.0,
+        "min_vram_gb": 2,
+        "min_ram_gb": 4,
+        "description": "Minimal specs. Runs on almost anything including CPU-only laptops.",
+        "tier": "low",
+    },
+    {
+        "id": "llama3.2-3b",
+        "name": "Llama 3.2 3B",
+        "ollama": "llama3.2:3b",
+        "size_gb": 2.0,
+        "min_vram_gb": 2,
+        "min_ram_gb": 4,
+        "description": "Meta's compact model. Fast inference on low-end hardware.",
+        "tier": "low",
+    },
+    {
+        "id": "phi3-mini",
+        "name": "Phi-3.5 Mini 3.8B",
+        "ollama": "phi3.5:latest",
+        "size_gb": 2.2,
+        "min_vram_gb": 3,
+        "min_ram_gb": 4,
+        "description": "Microsoft's efficient small model. Great for integrated GPUs.",
+        "tier": "low",
+    },
+]
 
 
 # ── WebSocket broadcast ───────────────────────────────────────────
@@ -236,6 +317,111 @@ async def stop_engine():
     if _engine:
         _engine.stop()
     return {"status": "stopped"}
+
+
+@app.get("/api/models")
+async def get_models():
+    """Return model presets and which ones are locally available."""
+    available: set[str] = set()
+    try:
+        if _engine and _engine._llm:
+            models = await _engine._llm.list_models()
+            for m in models:
+                n = m.get("name", "")
+                available.add(n)
+                available.add(n.split(":")[0])
+    except Exception:
+        pass
+
+    active = _config.llm.model if _config else ""
+    result = []
+    for p in MODEL_PRESETS:
+        entry = {**p}
+        ollama_base = p["ollama"].split(":")[0]
+        entry["installed"] = p["ollama"] in available or ollama_base in available
+        entry["active"] = p["ollama"] == active or ollama_base == active.split(":")[0]
+        result.append(entry)
+    return result
+
+
+@app.put("/api/model")
+async def switch_model(req: ModelSwitchRequest):
+    """Switch the active LLM model."""
+    if not _engine or not _engine._llm:
+        return {"error": "Engine or LLM not initialized"}
+
+    # Find the preset
+    preset = next((p for p in MODEL_PRESETS if p["id"] == req.model), None)
+    ollama_name = preset["ollama"] if preset else req.model
+
+    _engine._llm._active_model = ollama_name
+    if _config:
+        _config.llm.model = ollama_name
+
+    return {"model": ollama_name, "status": "switched"}
+
+
+@app.post("/api/report")
+async def generate_report():
+    """Use the LLM to generate a human-readable report from findings."""
+    if not _engine or not _engine._llm:
+        return {"error": "LLM not available"}
+
+    # Collect findings from active session
+    findings = []
+    if _sessions:
+        for sm in _sessions.list_sessions():
+            s = _sessions.load_session(sm.id)
+            if s:
+                findings.extend(s.findings)
+
+    if not findings:
+        return {"report": "No findings to report. Run a scan first."}
+
+    findings_text = "\n".join(
+        f"- [{f.get('severity','?')}] {f.get('title','Untitled')}: {f.get('description','')}"
+        for f in findings
+    )
+
+    prompt = (
+        "You are a penetration testing report writer. Below are the raw findings "
+        "from an automated security scan. Write a clear, professional executive "
+        "summary report that:\n"
+        "1. Summarises the overall security posture\n"
+        "2. Lists each finding with severity, impact, and recommended remediation\n"
+        "3. Prioritises the most critical issues first\n"
+        "4. Uses clear non-technical language where possible\n\n"
+        f"FINDINGS:\n{findings_text}\n\n"
+        "Write the full report now:"
+    )
+
+    try:
+        report = await _engine._llm.generate(prompt)
+        return {"report": report}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.post("/api/explain")
+async def explain_error(req: ExplainRequest):
+    """Use the LLM to explain an error message in plain English."""
+    if not _engine or not _engine._llm:
+        return {"error": "LLM not available"}
+
+    prompt = (
+        "You are a helpful security tool assistant. A user encountered the "
+        "following error while using a pentesting tool. Explain what happened, "
+        "why it occurred, and what they can do to fix it. Keep it concise and "
+        "clear.\n\n"
+        f"ERROR:\n{req.error_text}\n\n"
+        "Explanation:"
+    )
+
+    try:
+        explanation = await _engine._llm.generate(prompt)
+        return {"explanation": explanation}
+    except Exception as e:
+        return {"error": str(e)}
 
 
 @app.websocket("/ws")

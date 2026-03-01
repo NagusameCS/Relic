@@ -14,6 +14,7 @@ const state = {
     ws: null,
     findings: [],
     modules: {},
+    models: [],
     history: [],
     historyIdx: -1,
 };
@@ -21,28 +22,30 @@ const state = {
 // ── DOM refs ─────────────────────────────────────────────────────
 
 const dom = {
-    apiUrl:      () => $("#api-url"),
-    btnConnect:  () => $("#btn-connect"),
-    btnSend:     () => $("#btn-send"),
-    btnStop:     () => $("#btn-stop"),
-    status:      () => $("#status-indicator"),
-    modelLabel:  () => $("#model-label"),
-    outputLog:   () => $("#output-log"),
-    promptInput: () => $("#prompt-input"),
-    scopeList:   () => $("#scope-list"),
-    moduleTree:  () => $("#module-tree"),
-    moduleCount: () => $("#module-count"),
-    moduleGrid:  () => $("#module-grid"),
-    moduleSearch:() => $("#module-search"),
-    sessionList: () => $("#session-list"),
-    findingsBody:() => $("#findings-body"),
-    noFindings:  () => $("#no-findings"),
+    apiUrl:       () => $("#api-url"),
+    btnConnect:   () => $("#btn-connect"),
+    btnSend:      () => $("#btn-send"),
+    btnStop:      () => $("#btn-stop"),
+    status:       () => $("#status-indicator"),
+    modelLabel:   () => $("#model-label"),
+    modelSelect:  () => $("#model-select"),
+    modelSpecs:   () => $("#model-specs"),
+    outputLog:    () => $("#output-log"),
+    promptInput:  () => $("#prompt-input"),
+    scopeList:    () => $("#scope-list"),
+    moduleTree:   () => $("#module-tree"),
+    moduleCount:  () => $("#module-count"),
+    moduleGrid:   () => $("#module-grid"),
+    moduleSearch: () => $("#module-search"),
+    sessionList:  () => $("#session-list"),
+    findingsBody: () => $("#findings-body"),
+    noFindings:   () => $("#no-findings"),
     findingsTable:() => $("#findings-table"),
-    countCritical: () => $("#count-critical"),
-    countHigh:   () => $("#count-high"),
-    countMedium: () => $("#count-medium"),
-    countLow:    () => $("#count-low"),
-    countInfo:   () => $("#count-info"),
+    countCritical:() => $("#count-critical"),
+    countHigh:    () => $("#count-high"),
+    countMedium:  () => $("#count-medium"),
+    countLow:     () => $("#count-low"),
+    countInfo:    () => $("#count-info"),
 };
 
 // ── Utilities ────────────────────────────────────────────────────
@@ -53,15 +56,25 @@ function ts() {
 
 function esc(text) {
     const d = document.createElement("div");
-    d.textContent = text;
+    d.textContent = String(text);
     return d.innerHTML;
 }
 
-function appendLog(html, cls = "") {
+function appendLog(html, cls = "", opts = {}) {
     const log = dom.outputLog();
     const line = document.createElement("div");
     line.className = `log-line ${cls}`.trim();
-    line.innerHTML = `<span class="timestamp">${ts()}</span>${html}`;
+    let content = `<span class="timestamp">${ts()}</span>${html}`;
+
+    // If this is an error, add an Explain button
+    if (opts.explainable && state.connected) {
+        const rawText = opts.rawText || html.replace(/<[^>]+>/g, "");
+        const safeText = btoa(unescape(encodeURIComponent(rawText)));
+        content += ` <button class="btn-explain" onclick="explainError('${safeText}')">` +
+            `<span class="material-symbols-outlined">lightbulb</span>Explain</button>`;
+    }
+
+    line.innerHTML = content;
     log.appendChild(line);
     log.scrollTop = log.scrollHeight;
 }
@@ -73,6 +86,11 @@ function setStatus(s) {
                  : s === "working"   ? '<span class="material-symbols-outlined icon-inline">autorenew</span> Working'
                  : '<span class="material-symbols-outlined icon-inline">circle</span> Disconnected';
 }
+
+// ── Modals ───────────────────────────────────────────────────────
+
+function openModal(id) { $(id).style.display = "flex"; }
+function closeModal(id) { $(id).style.display = "none"; }
 
 // ── API helpers ──────────────────────────────────────────────────
 
@@ -105,22 +123,23 @@ async function connect() {
         dom.moduleCount().textContent = status.modules;
         appendLog(`Connected — model: <b>${esc(status.model)}</b>, modules: ${status.modules}`, "log-success");
 
-        // Fetch scope, modules, sessions in parallel
-        const [scope, modules, sessions] = await Promise.all([
+        const [scope, modules, sessions, models] = await Promise.all([
             apiGet("/api/scope"),
             apiGet("/api/modules"),
             apiGet("/api/sessions"),
+            apiGet("/api/models"),
         ]);
 
         renderScope(scope);
         renderModules(modules);
         renderSessions(sessions);
+        renderModels(models);
         connectWebSocket();
 
     } catch (e) {
         state.connected = false;
         setStatus("disconnected");
-        appendLog(`Connection failed: ${esc(e.message)}`, "log-error");
+        appendLog(`Connection failed: ${esc(e.message)}`, "log-error", { explainable: true, rawText: e.message });
     }
 }
 
@@ -146,7 +165,8 @@ function connectWebSocket() {
 function handleWsEvent(ev) {
     switch (ev.type) {
         case "LogEvent":
-            appendLog(esc(ev.message), `log-${ev.level || "info"}`);
+            const isErr = (ev.level || "").includes("error");
+            appendLog(esc(ev.message), `log-${ev.level || "info"}`, { explainable: isErr, rawText: ev.message });
             break;
         case "CommandEvent":
             appendLog(`$ ${esc(ev.command)}`, ev.source === "llm" ? "log-llm" : "log-command");
@@ -172,13 +192,12 @@ async function send() {
     const text = input.value.trim();
     if (!text) return;
 
-    // Save history
     state.history.push(text);
     state.historyIdx = state.history.length;
     input.value = "";
 
     if (!state.connected) {
-        appendLog("Not connected. Click <b>Connect</b> first.", "log-error");
+        appendLog("Not connected — click Connect first.", "log-error", { explainable: false });
         return;
     }
 
@@ -190,7 +209,7 @@ async function send() {
             const res = await apiPost("/api/command", { command: cmd });
             appendLog(esc(res.output || "(no output)"), "log-output");
         } catch (e) {
-            appendLog(`Error: ${esc(e.message)}`, "log-error");
+            appendLog(`Error: ${esc(e.message)}`, "log-error", { explainable: true, rawText: e.message });
         }
         setStatus("connected");
     } else {
@@ -200,7 +219,7 @@ async function send() {
             await apiPost("/api/objective", { objective: text });
             appendLog("Objective submitted — streaming output below…", "log-info");
         } catch (e) {
-            appendLog(`Error: ${esc(e.message)}`, "log-error");
+            appendLog(`Error: ${esc(e.message)}`, "log-error", { explainable: true, rawText: e.message });
             setStatus("connected");
         }
     }
@@ -213,7 +232,79 @@ async function stop() {
         appendLog("Stop signal sent", "log-warning");
         setStatus("connected");
     } catch (e) {
-        appendLog(`Error: ${esc(e.message)}`, "log-error");
+        appendLog(`Error: ${esc(e.message)}`, "log-error", { explainable: true, rawText: e.message });
+    }
+}
+
+// ── Model selector ───────────────────────────────────────────────
+
+function renderModels(models) {
+    state.models = models;
+    const sel = dom.modelSelect();
+    sel.innerHTML = "";
+
+    const tiers = { recommended: "Recommended", high: "High-end", medium: "Mid-range", low: "Low-end" };
+    const grouped = {};
+    for (const m of models) {
+        const t = m.tier || "medium";
+        if (!grouped[t]) grouped[t] = [];
+        grouped[t].push(m);
+    }
+
+    for (const [tier, label] of Object.entries(tiers)) {
+        if (!grouped[tier]) continue;
+        const group = document.createElement("optgroup");
+        group.label = label;
+        for (const m of grouped[tier]) {
+            const opt = document.createElement("option");
+            opt.value = m.id;
+            opt.textContent = `${m.name} (${m.size_gb} GB)${m.installed ? " ✓" : ""}`;
+            if (m.active) opt.selected = true;
+            group.appendChild(opt);
+        }
+        sel.appendChild(group);
+    }
+
+    // Show specs of currently selected
+    updateModelSpecs();
+}
+
+function updateModelSpecs() {
+    const sel = dom.modelSelect();
+    const id = sel.value;
+    const m = state.models.find(x => x.id === id);
+    const el = dom.modelSpecs();
+    if (!m) { el.innerHTML = ""; return; }
+
+    el.innerHTML = `
+        <div class="spec-row"><span>VRAM</span><span class="spec-val">≥ ${m.min_vram_gb} GB</span></div>
+        <div class="spec-row"><span>RAM</span><span class="spec-val">≥ ${m.min_ram_gb} GB</span></div>
+        <div class="spec-row"><span>Disk</span><span class="spec-val">${m.size_gb} GB</span></div>
+        <div class="spec-row"><span>Status</span><span class="${m.installed ? "spec-installed" : "spec-missing"}">${m.installed ? "Installed" : "Not installed"}</span></div>
+        <div style="margin-top:4px;color:var(--dim)">${esc(m.description)}</div>`;
+}
+
+async function switchModel() {
+    const sel = dom.modelSelect();
+    const id = sel.value;
+    if (!id || !state.connected) return;
+
+    const m = state.models.find(x => x.id === id);
+    appendLog(`Switching model to <b>${esc(m ? m.name : id)}</b>…`, "log-info");
+
+    try {
+        const res = await api("/api/model", {
+            method: "PUT",
+            body: JSON.stringify({ model: id }),
+        });
+        dom.modelLabel().textContent = res.model || id;
+        appendLog(`Model switched to <b>${esc(res.model)}</b>`, "log-success");
+
+        if (m && !m.installed) {
+            appendLog(`Model not installed locally. Run: <b>ollama pull ${esc(m.ollama)}</b>`, "log-warning");
+        }
+    } catch (e) {
+        appendLog(`Failed to switch model: ${esc(e.message)}`, "log-error", { explainable: true, rawText: e.message });
     }
 }
 
@@ -229,7 +320,6 @@ function renderScope(scope) {
         .map(t => `<div class="scope-item">${esc(t)}</div>`)
         .join("");
 
-    // Populate input with first target for easy editing
     const input = $("#target-url");
     if (input && !input.value) {
         input.value = scope.authorized_targets[0] || "";
@@ -244,7 +334,7 @@ async function setTarget() {
         return;
     }
     if (!state.connected) {
-        appendLog("Not connected. Click <b>Connect</b> first.", "log-error");
+        appendLog("Not connected — click Connect first.", "log-error");
         return;
     }
     try {
@@ -258,14 +348,13 @@ async function setTarget() {
         renderScope(scope);
         appendLog(`Target set: <b>${esc(target)}</b>`, "log-success");
     } catch (e) {
-        appendLog(`Failed to set target: ${esc(e.message)}`, "log-error");
+        appendLog(`Failed to set target: ${esc(e.message)}`, "log-error", { explainable: true, rawText: e.message });
     }
 }
 
 function renderModules(modules) {
     state.modules = modules;
 
-    // Sidebar tree
     const tree = dom.moduleTree();
     let html = "";
     for (const [cat, mods] of Object.entries(modules)) {
@@ -277,8 +366,6 @@ function renderModules(modules) {
         html += `</div>`;
     }
     tree.innerHTML = html;
-
-    // Module grid
     renderModuleGrid(modules);
 }
 
@@ -305,7 +392,7 @@ function renderModuleGrid(modules, filter = "") {
 function renderSessions(sessions) {
     const el = dom.sessionList();
     if (!sessions || sessions.length === 0) {
-        el.innerHTML = "<em>None</em>";
+        el.innerHTML = '<span class="dim">None</span>';
         return;
     }
     el.innerHTML = sessions
@@ -349,6 +436,49 @@ function renderFindings() {
     dom.noFindings().style.display     = hasFindings ? "none" : "block";
     dom.findingsTable().style.display  = hasFindings ? "table" : "none";
 }
+
+// ── Report Generation ────────────────────────────────────────────
+
+async function generateReport() {
+    if (!state.connected) {
+        appendLog("Not connected — click Connect first.", "log-error");
+        return;
+    }
+
+    openModal("#report-overlay");
+    $("#report-content").textContent = "Generating report…";
+
+    try {
+        const res = await apiPost("/api/report", {});
+        if (res.error) {
+            $("#report-content").textContent = `Error: ${res.error}`;
+        } else {
+            $("#report-content").textContent = res.report;
+        }
+    } catch (e) {
+        $("#report-content").textContent = `Failed to generate report: ${e.message}`;
+    }
+}
+
+// ── Error Explanation ────────────────────────────────────────────
+// Global function so inline onclick works
+window.explainError = async function(base64Text) {
+    const errorText = decodeURIComponent(escape(atob(base64Text)));
+
+    openModal("#explain-overlay");
+    $("#explain-content").textContent = "Generating explanation…";
+
+    try {
+        const res = await apiPost("/api/explain", { error_text: errorText });
+        if (res.error) {
+            $("#explain-content").textContent = `Error: ${res.error}`;
+        } else {
+            $("#explain-content").textContent = res.explanation;
+        }
+    } catch (e) {
+        $("#explain-content").textContent = `Failed: ${e.message}`;
+    }
+};
 
 // ── Tabs ─────────────────────────────────────────────────────────
 
@@ -398,6 +528,33 @@ function init() {
     dom.btnSend().addEventListener("click", send);
     dom.btnStop().addEventListener("click", stop);
     $("#btn-set-target")?.addEventListener("click", setTarget);
+    $("#btn-report")?.addEventListener("click", generateReport);
+
+    // Model selector
+    dom.modelSelect()?.addEventListener("change", () => {
+        updateModelSpecs();
+        switchModel();
+    });
+
+    // Setup modal
+    $("#btn-setup")?.addEventListener("click", () => openModal("#setup-overlay"));
+    $("#btn-close-setup")?.addEventListener("click", () => closeModal("#setup-overlay"));
+    $("#btn-close-report")?.addEventListener("click", () => closeModal("#report-overlay"));
+    $("#btn-close-explain")?.addEventListener("click", () => closeModal("#explain-overlay"));
+
+    // Close modals on overlay click
+    $$(".modal-overlay").forEach(ov => {
+        ov.addEventListener("click", (e) => {
+            if (e.target === ov) ov.style.display = "none";
+        });
+    });
+
+    // Escape closes modals
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+            $$(".modal-overlay").forEach(ov => ov.style.display = "none");
+        }
+    });
 
     // Allow Enter in target input
     $("#target-url")?.addEventListener("keydown", (e) => {
@@ -408,10 +565,11 @@ function init() {
         renderModuleGrid(state.modules, e.target.value);
     });
 
-    // Welcome message
+    // Welcome
     appendLog("Welcome to <b>RELIC</b>", "log-command");
     appendLog("Enter the API URL and click Connect to begin.", "log-info");
-    appendLog("Type an objective or use /cmd &lt;command&gt; to run raw commands.", "log-info");
+    appendLog('Type an objective or use /cmd &lt;command&gt; to run raw commands.', "log-info");
+    appendLog('Click <b>Setup</b> in the header if you need installation help.', "log-info");
 
     renderFindings();
 }
