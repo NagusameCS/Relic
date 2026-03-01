@@ -1,0 +1,33 @@
+# Relic ignores
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Relic runtime
+.relic/
+sessions/
+reports/
+*.json
+
+# Vagrant
+.vagrant/
+Vagrantfile
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

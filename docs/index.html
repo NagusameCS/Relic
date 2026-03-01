@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relic — Pentesting Automation</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔓</text></svg>">
+</head>
+<body>
+    <!-- ───────── Disclaimer Banner ───────── -->
+    <div id="disclaimer">
+        ⚠ AUTHORIZED USE ONLY — Relic must only be used against targets you own or have written
+        permission to test. Unauthorized access is illegal.
+    </div>
+
+    <!-- ───────── Header ───────── -->
+    <header id="header">
+        <div class="header-left">
+            <span class="logo">RELIC</span>
+            <span class="tagline">Pentesting Automation</span>
+        </div>
+        <div class="header-right">
+            <span id="status-indicator" class="status disconnected">● Disconnected</span>
+            <span id="model-label" class="model-label">—</span>
+        </div>
+    </header>
+
+    <!-- ───────── Main Layout ───────── -->
+    <div id="app">
+        <!-- Sidebar -->
+        <aside id="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-label">CONNECTION</div>
+                <label class="input-group">
+                    <span>API URL</span>
+                    <input type="text" id="api-url" value="http://127.0.0.1:8746" spellcheck="false">
+                </label>
+                <button id="btn-connect" class="btn btn-primary">Connect</button>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-label">SCOPE</div>
+                <div id="scope-list" class="scope-list"><em>Not connected</em></div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-label">MODULES <span id="module-count" class="badge">0</span></div>
+                <div id="module-tree"></div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-label">SESSIONS</div>
+                <div id="session-list"><em>None</em></div>
+            </div>
+        </aside>
+
+        <!-- Main content -->
+        <main id="main">
+            <!-- Tabs -->
+            <nav id="tab-bar">
+                <button class="tab active" data-tab="terminal">Terminal</button>
+                <button class="tab" data-tab="findings">Findings</button>
+                <button class="tab" data-tab="modules">Modules</button>
+            </nav>
+
+            <!-- Terminal Tab -->
+            <section id="tab-terminal" class="tab-content active">
+                <div id="output-log"></div>
+                <div id="input-bar">
+                    <span class="prompt-symbol">❯</span>
+                    <input type="text" id="prompt-input" placeholder="Enter objective or /cmd <command>…" spellcheck="false" autocomplete="off">
+                    <button id="btn-send" class="btn btn-primary" title="Send">▶</button>
+                    <button id="btn-stop" class="btn btn-danger" title="Stop">■</button>
+                </div>
+            </section>
+
+            <!-- Findings Tab -->
+            <section id="tab-findings" class="tab-content">
+                <div class="findings-header">
+                    <h2>Findings</h2>
+                    <div class="finding-stats">
+                        <span class="badge badge-crit" id="count-critical">0 Critical</span>
+                        <span class="badge badge-high" id="count-high">0 High</span>
+                        <span class="badge badge-med" id="count-medium">0 Medium</span>
+                        <span class="badge badge-low" id="count-low">0 Low</span>
+                        <span class="badge badge-info" id="count-info">0 Info</span>
+                    </div>
+                </div>
+                <table id="findings-table">
+                    <thead>
+                        <tr>
+                            <th>Severity</th>
+                            <th>Title</th>
+                            <th>Module</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody id="findings-body"></tbody>
+                </table>
+                <div id="no-findings" class="empty-state">No findings yet. Run a scan to get started.</div>
+            </section>
+
+            <!-- Modules Tab -->
+            <section id="tab-modules" class="tab-content">
+                <div class="modules-header">
+                    <h2>Module Browser</h2>
+                    <input type="text" id="module-search" placeholder="Search modules…" spellcheck="false">
+                </div>
+                <div id="module-grid"></div>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

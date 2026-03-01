@@ -1,0 +1,55 @@
+# Default Relic configuration
+# Copy to ~/.relic/config.yaml and customize
+
+llm:
+  provider: ollama
+  base_url: "http://localhost:11434"
+  model: "glm-4.7-flash"
+  temperature: 0.7
+  max_tokens: 8192
+  num_ctx: 8192           # Context window size (keep ≤8192 for <32GB RAM)
+  timeout: 300
+  # Fallback model if primary is unavailable
+  fallback_model: "gemma3:12b"
+
+vm:
+  provider: vagrant       # vagrant | libvirt | docker
+  base_image: "kalilinux/rolling"
+  memory: 4096
+  cpus: 2
+  network: "nat"
+  shared_folder: "./workspace"
+  snapshot_on_start: true
+  privileged: true           # Root access inside VM
+  unrestricted_network: true # No iptables / NAT restrictions
+
+session:
+  workspace_dir: "~/.relic/sessions"
+  auto_save: true
+  save_interval: 60       # seconds
+  max_history: 10000
+
+modules:
+  recon:
+    enabled: true
+    tools: [nmap, whois, dig, subfinder, httpx-toolkit]
+  exploit:
+    enabled: true
+    tools: [metasploit, sqlmap, hydra, john]
+  reporting:
+    enabled: true
+    format: "markdown"
+    output_dir: "./reports"
+
+scope:
+  # Strict authorized scope — Relic will block commands outside these targets
+  authorized_targets:
+    - "path.opencs.dev/RelicPermission"
+  strict: true
+  authorization_url: "https://path.opencs.dev/RelicPermission"
+
+ui:
+  theme: "relic-dark"
+  show_timestamps: true
+  log_level: "INFO"
+  max_output_lines: 5000
