@@ -3,25 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Relic — Pentesting Automation</title>
+    <title>Relic</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔓</text></svg>">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⬛</text></svg>">
 </head>
 <body>
-    <!-- ───────── Disclaimer Banner ───────── -->
+    <!-- ───────── Disclaimer ───────── -->
     <div id="disclaimer">
-        ⚠ AUTHORIZED USE ONLY — Relic must only be used against targets you own or have written
-        permission to test. Unauthorized access is illegal.
+        <span class="material-symbols-outlined icon-inline">warning</span>
+        Authorized use only — test only targets you own or have written permission to scan.
     </div>
 
     <!-- ───────── Header ───────── -->
     <header id="header">
         <div class="header-left">
             <span class="logo">RELIC</span>
-            <span class="tagline">Pentesting Automation</span>
         </div>
         <div class="header-right">
-            <span id="status-indicator" class="status disconnected">● Disconnected</span>
+            <span id="status-indicator" class="status disconnected">
+                <span class="material-symbols-outlined icon-inline">circle</span>
+                Disconnected
+            </span>
             <span id="model-label" class="model-label">—</span>
         </div>
     </header>
@@ -31,32 +34,45 @@
         <!-- Sidebar -->
         <aside id="sidebar">
             <div class="sidebar-section">
-                <div class="sidebar-label">CONNECTION</div>
-                <label class="input-group">
-                    <span>API URL</span>
-                    <input type="text" id="api-url" value="http://127.0.0.1:8746" spellcheck="false">
-                </label>
-                <button id="btn-connect" class="btn btn-primary">Connect</button>
+                <div class="sidebar-label">
+                    <span class="material-symbols-outlined icon-label">link</span>
+                    Connection
+                </div>
+                <input type="text" id="api-url" value="http://127.0.0.1:8746" spellcheck="false" placeholder="API URL">
+                <button id="btn-connect" class="btn">
+                    <span class="material-symbols-outlined icon-inline">power_settings_new</span>
+                    Connect
+                </button>
             </div>
 
             <div class="sidebar-section">
-                <div class="sidebar-label">TARGET</div>
-                <label class="input-group">
-                    <span>Authorized Target</span>
-                    <input type="text" id="target-url" placeholder="e.g. example.com/path" spellcheck="false">
-                </label>
-                <button id="btn-set-target" class="btn btn-primary">Set Target</button>
-                <div id="scope-list" class="scope-list" style="margin-top:8px"><em>Not connected</em></div>
+                <div class="sidebar-label">
+                    <span class="material-symbols-outlined icon-label">target</span>
+                    Target
+                </div>
+                <input type="text" id="target-url" placeholder="e.g. example.com/path" spellcheck="false">
+                <button id="btn-set-target" class="btn">
+                    <span class="material-symbols-outlined icon-inline">check</span>
+                    Set Target
+                </button>
+                <div id="scope-list" class="scope-list"></div>
             </div>
 
             <div class="sidebar-section">
-                <div class="sidebar-label">MODULES <span id="module-count" class="badge">0</span></div>
+                <div class="sidebar-label">
+                    <span class="material-symbols-outlined icon-label">extension</span>
+                    Modules
+                    <span id="module-count" class="badge">0</span>
+                </div>
                 <div id="module-tree"></div>
             </div>
 
             <div class="sidebar-section">
-                <div class="sidebar-label">SESSIONS</div>
-                <div id="session-list"><em>None</em></div>
+                <div class="sidebar-label">
+                    <span class="material-symbols-outlined icon-label">history</span>
+                    Sessions
+                </div>
+                <div id="session-list"><span class="dim">None</span></div>
             </div>
         </aside>
 
@@ -64,19 +80,31 @@
         <main id="main">
             <!-- Tabs -->
             <nav id="tab-bar">
-                <button class="tab active" data-tab="terminal">Terminal</button>
-                <button class="tab" data-tab="findings">Findings</button>
-                <button class="tab" data-tab="modules">Modules</button>
+                <button class="tab active" data-tab="terminal">
+                    <span class="material-symbols-outlined icon-inline">terminal</span>
+                    Terminal
+                </button>
+                <button class="tab" data-tab="findings">
+                    <span class="material-symbols-outlined icon-inline">bug_report</span>
+                    Findings
+                </button>
+                <button class="tab" data-tab="modules">
+                    <span class="material-symbols-outlined icon-inline">view_module</span>
+                    Modules
+                </button>
             </nav>
 
             <!-- Terminal Tab -->
             <section id="tab-terminal" class="tab-content active">
                 <div id="output-log"></div>
                 <div id="input-bar">
-                    <span class="prompt-symbol">❯</span>
-                    <input type="text" id="prompt-input" placeholder="Enter objective or /cmd <command>…" spellcheck="false" autocomplete="off">
-                    <button id="btn-send" class="btn btn-primary" title="Send">▶</button>
-                    <button id="btn-stop" class="btn btn-danger" title="Stop">■</button>
+                    <input type="text" id="prompt-input" placeholder="Enter objective or /cmd &lt;command&gt;…" spellcheck="false" autocomplete="off">
+                    <button id="btn-send" class="btn icon-btn" title="Send">
+                        <span class="material-symbols-outlined">send</span>
+                    </button>
+                    <button id="btn-stop" class="btn icon-btn" title="Stop">
+                        <span class="material-symbols-outlined">stop</span>
+                    </button>
                 </div>
             </section>
 
@@ -85,11 +113,11 @@
                 <div class="findings-header">
                     <h2>Findings</h2>
                     <div class="finding-stats">
-                        <span class="badge badge-crit" id="count-critical">0 Critical</span>
-                        <span class="badge badge-high" id="count-high">0 High</span>
-                        <span class="badge badge-med" id="count-medium">0 Medium</span>
-                        <span class="badge badge-low" id="count-low">0 Low</span>
-                        <span class="badge badge-info" id="count-info">0 Info</span>
+                        <span class="badge" id="count-critical">0 Critical</span>
+                        <span class="badge" id="count-high">0 High</span>
+                        <span class="badge" id="count-medium">0 Medium</span>
+                        <span class="badge" id="count-low">0 Low</span>
+                        <span class="badge" id="count-info">0 Info</span>
                     </div>
                 </div>
                 <table id="findings-table">
@@ -103,14 +131,20 @@
                     </thead>
                     <tbody id="findings-body"></tbody>
                 </table>
-                <div id="no-findings" class="empty-state">No findings yet. Run a scan to get started.</div>
+                <div id="no-findings" class="empty-state">
+                    <span class="material-symbols-outlined" style="font-size:32px;margin-bottom:8px">shield</span><br>
+                    No findings yet. Run a scan to get started.
+                </div>
             </section>
 
             <!-- Modules Tab -->
             <section id="tab-modules" class="tab-content">
                 <div class="modules-header">
-                    <h2>Module Browser</h2>
-                    <input type="text" id="module-search" placeholder="Search modules…" spellcheck="false">
+                    <h2>Modules</h2>
+                    <div class="search-wrap">
+                        <span class="material-symbols-outlined icon-inline">search</span>
+                        <input type="text" id="module-search" placeholder="Search…" spellcheck="false">
+                    </div>
                 </div>
                 <div id="module-grid"></div>
             </section>

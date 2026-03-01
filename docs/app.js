@@ -69,9 +69,9 @@ function appendLog(html, cls = "") {
 function setStatus(s) {
     const el = dom.status();
     el.className = `status ${s}`;
-    el.textContent = s === "connected" ? "● Connected"
-                   : s === "working"   ? "● Working…"
-                   : "● Disconnected";
+    el.innerHTML = s === "connected" ? '<span class="material-symbols-outlined icon-inline">check_circle</span> Connected'
+                 : s === "working"   ? '<span class="material-symbols-outlined icon-inline">autorenew</span> Working'
+                 : '<span class="material-symbols-outlined icon-inline">circle</span> Disconnected';
 }
 
 // ── API helpers ──────────────────────────────────────────────────
@@ -409,9 +409,9 @@ function init() {
     });
 
     // Welcome message
-    appendLog("Welcome to <b>RELIC</b> — Pentesting Automation", "log-success");
-    appendLog("Enter the API URL and click <b>Connect</b> to begin.", "log-info");
-    appendLog("Type an objective or use <b>/cmd &lt;command&gt;</b> to run raw commands.", "log-info");
+    appendLog("Welcome to <b>RELIC</b>", "log-command");
+    appendLog("Enter the API URL and click Connect to begin.", "log-info");
+    appendLog("Type an objective or use /cmd &lt;command&gt; to run raw commands.", "log-info");
 
     renderFindings();
 }
